@@ -11,18 +11,14 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install qemu-kvm cpulimit wget -y
-          sudo apt-get install virt-manager -y
-          wget -O ngrok.tgz "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz"
-          tar -xf ngrok.tgz && rm -rf ngrok.tgz
-          ./ngrok config add-authtoken 2zWoTgTaGof7xYyyogozc6TySaT_83DpU9XNBzNF39b7CK8Bd
-          ./ngrok http 5900 > ngrok.log &
-          sleep 5
-          curl -s http://127.0.0.1:4040/api/tunnels > tunnels.json
-          LINK=$(cat tunnels.json | jq -r '.tunnels[0].public_url')
+      - name: meo
+        run: |
+          ssh -o StrictHostKeyChecking=no -R 5900:localhost:5900 ssh.localhost.run > localhost.log 2>&1 &
+          sleep 10
+          LINK=$(grep -o 'https://[0-9a-zA-Z.-]*.localhost.run' localhost.log | head -n1)
           echo "{\"vnc\": \"$LINK\"}" > vnc.json
-          sudo apt install novnc websockify -y
+          echo "VNC Public URL: $LINK"
           websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
-
       - name: gửi link VNC lên Discord
         run: |
           VNC_LINK=$(jq -r '.vnc' vnc.json)
