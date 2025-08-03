@@ -20,11 +20,28 @@ jobs:
 
       - name: Cài và khởi chạy Cloudflared tunnel
         run: |
-          sudo wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          sudo chmod +x cloudflared
-          sudo nohup ./cloudflared tunnel --url http://localhost:6080 > tunnel.log &
-          sleep 8
-          LINK=$(timeout 5 ./cloudflared tunnel --url http://localhost:6080 2>&1 | tee /dev/stdout | grep -o 'https://.*\.trycloudflare.com' | head -n 1)
+          wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+
+          # Chạy tunnel nền và ghi log
+          ./cloudflared tunnel --url http://localhost:6080 > log.txt 2>&1 &
+          
+          # Chờ đến khi link xuất hiện
+          for i in {1..15}; do
+            LINK=$(grep -o 'https://.*\.trycloudflare.com' log.txt | head -n1)
+            if [[ -n "$LINK" ]]; then
+              echo "Link found: $LINK"
+              break
+            fi
+            sleep 1
+          done
+
+          # Nếu không có link thì báo lỗi rõ
+          if [[ -z "$LINK" ]]; then
+            echo "❌ Không tìm thấy link Cloudflare!"
+            LINK="(không tạo được)"
+          fi
+
           echo "{\"url\": \"$LINK\"}" > vnc.json
       - name: gửi link VNC lên Discord
         run: |
