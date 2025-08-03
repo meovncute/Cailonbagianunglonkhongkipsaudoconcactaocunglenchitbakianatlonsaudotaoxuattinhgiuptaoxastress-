@@ -11,16 +11,21 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install qemu-kvm cpulimit wget websockify -y
-      - name: meo
+      - name: Tải và khởi chạy NoVNC (port 6080)
         run: |
-          wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared
-          ./cloudflared tunnel --url http://localhost:6080 > tunnel.log &
+          sudo wget https://github.com/novnc/noVNC/archive/refs/heads/master.zip
+          sudo unzip master.zip
+          sudo mv noVNC-master novnc
+          sudo nohup websockify --web=novnc 6080 localhost:5900 &
+
+      - name: Cài và khởi chạy Cloudflared tunnel
+        run: |
+          sudo wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo chmod +x cloudflared
+          sudo nohup ./cloudflared tunnel --url http://localhost:6080 > tunnel.log &
           sleep 8
-          LINK=$(cat tunnel.log | grep -o "https://.*trycloudflare.com" | head -n 1)
-          echo "VNC Web: $LINK"
-          echo "{\"url\": \"$LINK\"}" > vnc.json
-          websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
+          LINK=$(grep -o 'https://.*\.trycloudflare.com' tunnel.log | head -n 1)
+          sudo echo "{\"url\": \"$LINK\"}" > vnc.json
       - name: gửi link VNC lên Discord
         run: |
           VNC_LINK=$(jq -r '.vnc' vnc.json)
