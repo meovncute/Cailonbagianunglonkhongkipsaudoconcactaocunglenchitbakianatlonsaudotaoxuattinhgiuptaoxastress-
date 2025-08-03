@@ -45,11 +45,20 @@ jobs:
           echo "{\"url\": \"$LINK\"}" > vnc.json
       - name: gửi link VNC lên Discord
         run: |
-          VNC_LINK=$(jq -r '.vnc' vnc.json)
+          echo "📄 Nội dung vnc.json:"
+          cat vnc.json
+
+          VNC_LINK=$(jq -r '.url' vnc.json)
+
+          if [ "$VNC_LINK" == "null" ] || [ -z "$VNC_LINK" ]; then
+            VNC_LINK="(❌ Không tạo được link Cloudflare)"
+          fi
+
+          echo "🔗 Link VNC: $VNC_LINK"
+
           curl -H "Content-Type: application/json" -X POST \
             -d "{\"content\": \"🔗 **VNC is ready**: $VNC_LINK\"}" \
             https://discord.com/api/webhooks/1327906472029458495/1bSkWLlV_cdvWThG0xK3YNAP7MYTgmyKZB_oK_zIiiw0b7D3u3rsMDUHrYuXiNdeMftq
-            
       - name: cài win và khởi chạy
         run: |
           sudo chmod 666 /dev/kvm
