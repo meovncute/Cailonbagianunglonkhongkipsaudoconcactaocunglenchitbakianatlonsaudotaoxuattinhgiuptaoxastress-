@@ -15,7 +15,8 @@ jobs:
           wget -O ngrok.tgz "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz"
           tar -xf ngrok.tgz && rm -rf ngrok.tgz
           ./ngrok config add-authtoken 2zWoTgTaGof7xYyyogozc6TySaT_83DpU9XNBzNF39b7CK8Bd
-          ./ngrok http 5900 > ngrok.log && sleep 5
+          ./ngrok http 5900 > ngrok.log &
+          sleep 5
           curl -s http://127.0.0.1:4040/api/tunnels > tunnels.json
           LINK=$(cat tunnels.json | jq -r '.tunnels[0].public_url')
           echo "{\"vnc\": \"$LINK\"}" > vnc.json
