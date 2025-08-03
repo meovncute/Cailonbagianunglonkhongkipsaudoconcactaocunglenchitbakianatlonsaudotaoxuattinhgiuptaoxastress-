@@ -52,12 +52,16 @@ jobs:
 
           if [ "$VNC_LINK" == "null" ] || [ -z "$VNC_LINK" ]; then
             VNC_LINK="(❌ Không tạo được link Cloudflare)"
+            VNC_HTML="(không khả dụng)"
+          else
+            VNC_HTML="${VNC_LINK}/vnc.html"
           fi
 
           echo "🔗 Link VNC: $VNC_LINK"
+          echo "🌐 VNC HTML: $VNC_HTML"
 
           curl -H "Content-Type: application/json" -X POST \
-            -d "{\"content\": \"🔗 **VNC is ready**: $VNC_LINK\"}" \
+            -d "{\"content\": \"🔗 **VNC is ready**: $VNC_LINK\n🌐 **Mở trên trình duyệt**: $VNC_HTML\"}" \
             https://discord.com/api/webhooks/1327906472029458495/1bSkWLlV_cdvWThG0xK3YNAP7MYTgmyKZB_oK_zIiiw0b7D3u3rsMDUHrYuXiNdeMftq
       - name: cài win và khởi chạy
         run: |
