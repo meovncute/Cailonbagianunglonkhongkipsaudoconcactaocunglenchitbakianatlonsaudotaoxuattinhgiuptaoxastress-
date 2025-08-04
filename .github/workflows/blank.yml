@@ -17,51 +17,46 @@ jobs:
           sudo unzip master.zip
           sudo mv noVNC-master novnc
           sudo nohup websockify --web=novnc 6080 localhost:5900 &
+      - name: Chạy SPICE Websocket + HTML5
+        run: |
+          git clone https://gitlab.freedesktop.org/spice/spice-html5.git
+          nohup websockify --web=spice-html5 6090 localhost:5924 &
 
-      - name: Cài và khởi chạy Cloudflared tunnel
+      - name: Tạo tunnel Cloudflare cho SPICE
         run: |
           wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x cloudflared
+          nohup ./cloudflared tunnel --url http://localhost:6090 > spice_log.txt 2>&1 &
 
-          # Chạy tunnel nền và ghi log
-          ./cloudflared tunnel --url http://localhost:6080 > log.txt 2>&1 &
-          
-          # Chờ đến khi link xuất hiện
+          sleep 5
           for i in {1..15}; do
-            LINK=$(grep -o 'https://.*\.trycloudflare.com' log.txt | head -n1)
-            if [[ -n "$LINK" ]]; then
-              echo "Link found: $LINK"
+            SPICE_LINK=$(grep -o 'https://.*\.trycloudflare.com' spice_log.txt | head -n1)
+            if [[ -n "$SPICE_LINK" ]]; then
+              echo "Link found: $SPICE_LINK"
               break
             fi
             sleep 1
           done
 
-          # Nếu không có link thì báo lỗi rõ
-          if [[ -z "$LINK" ]]; then
-            echo "❌ Không tìm thấy link Cloudflare!"
-            LINK="(không tạo được)"
+          if [[ -z "$SPICE_LINK" ]]; then
+            echo "❌ Không tìm thấy link Cloudflare SPICE!"
+            SPICE_LINK="(không tạo được)"
           fi
 
-          echo "{\"url\": \"$LINK\"}" > vnc.json
-      - name: gửi link VNC lên Discord
+          echo "{\"spice\": \"$SPICE_LINK\"}" > spice.json
+
+      - name: Gửi link SPICE lên Discord
         run: |
-          echo "📄 Nội dung vnc.json:"
-          cat vnc.json
+          SPICE_LINK=$(jq -r '.spice' spice.json)
 
-          VNC_LINK=$(jq -r '.url' vnc.json)
-
-          if [ "$VNC_LINK" == "null" ] || [ -z "$VNC_LINK" ]; then
-            VNC_LINK="(❌ Không tạo được link Cloudflare)"
-            VNC_HTML="(không khả dụng)"
+          if [ "$SPICE_LINK" == "null" ] || [ -z "$SPICE_LINK" ]; then
+            SPICE_HTML="(❌ Không khả dụng)"
           else
-            VNC_HTML="${VNC_LINK}/vnc.html"
+            SPICE_HTML="${SPICE_LINK}/spice_auto.html"
           fi
-
-          echo "🔗 Link VNC: $VNC_LINK"
-          echo "🌐 VNC HTML: $VNC_HTML"
 
           curl -H "Content-Type: application/json" -X POST \
-            -d "{\"content\": \"🔗 **VNC is ready**: $VNC_LINK\n🌐 **Mở trên trình duyệt**: $VNC_HTML\"}" \
+            -d "{\"content\": \"🧯 **SPICE VM Ready**: $SPICE_LINK\n🌐 **Dùng SPICE HTML5**: $SPICE_HTML\"}" \
             https://discord.com/api/webhooks/1327906472029458495/1bSkWLlV_cdvWThG0xK3YNAP7MYTgmyKZB_oK_zIiiw0b7D3u3rsMDUHrYuXiNdeMftq
       - name: cài win và khởi chạy
         run: |
