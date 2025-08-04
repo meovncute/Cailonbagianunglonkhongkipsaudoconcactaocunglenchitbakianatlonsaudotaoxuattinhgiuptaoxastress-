@@ -11,12 +11,6 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install qemu-kvm cpulimit wget websockify -y
-      - name: Tải và khởi chạy NoVNC (port 6080)
-        run: |
-          sudo wget https://github.com/novnc/noVNC/archive/refs/heads/master.zip
-          sudo unzip master.zip
-          sudo mv noVNC-master novnc
-          sudo nohup websockify --web=novnc 6080 localhost:5900 &
       - name: Chạy SPICE Websocket + HTML5
         run: |
           git clone https://gitlab.freedesktop.org/spice/spice-html5.git
