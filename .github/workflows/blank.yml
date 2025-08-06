@@ -19,9 +19,11 @@ jobs:
 
       - name: Tải ISO và tạo đĩa
         run: |
-          wget -O android.iso "https://downloads.sourceforge.net/project/android-x86/Release%209.0/android-x86_64-9.0-r2.iso"
-          wget -O driver.iso "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240.iso"
-          sudo qemu-img create -f qcow2 android.qcow2 64G
+          wget -O android.iso "https://downloads.sourceforge.net/project/android-x86/Release%209.0/android-x86_64-9.0-r2.iso" &>/dev/null &
+          while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
+          wget -O driver.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240-1/virtio-win-0.1.240.iso &>/dev/null &
+          while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
+          sudo qemu-img create -f qcow2 android.qcow2 128G
 
       - name: Cài noVNC
         run: |
