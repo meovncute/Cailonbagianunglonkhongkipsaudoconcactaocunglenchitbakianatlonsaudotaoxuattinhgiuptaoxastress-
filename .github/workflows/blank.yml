@@ -59,15 +59,7 @@ jobs:
       - name: Khởi chạy máy ảo QEMU (6 giờ)
         run: |
           echo "✅ Khởi động máy ảo Android..."
-          sudo qemu-system-x86_64 \
-            -enable-kvm -m 12G -smp 4 \
-            -drive file=android.qcow2,format=qcow2 \
-            -cdrom android.iso \
-            -drive file=driver.iso,media=cdrom \
-            -boot d \
-            -net nic -net user \
-            -vnc :0 \
-            -nographic &
+          sudo cpulimit -l 60 -- sudo kvm -M q35,usb=on -device usb-tablet -cpu host,hv_passthrough -smp 4 -m 12G -device virtio-balloon-pci -vga qxl -net nic,netdev=n0 -netdev user,id=n0,hostfwd=tcp::3389-:3389 -boot c -device virtio-serial-pci -device virtio-rng-pci -enable-kvm -drive file=/mnt/a.qcow2 -drive file=android.iso,media=cdrom -drive file=a.img,format=raw,id=stick,if=none -device nec-usb-xhci,id=xhci -device usb-storage,bus=xhci.0,drive=stick -drive file=driver.iso,media=cdrom -vnc :0 -bios /usr/share/ovmf/OVMF.fd -uuid e47ddb84-fb4d-46f9-b531-14bb15156336 &
           VM_PID=$!
           for i in {1..21600}; do
             if ! ps -p $VM_PID > /dev/null; then
