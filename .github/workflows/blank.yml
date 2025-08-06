@@ -3,58 +3,180 @@ name: con người tiến hpaa
 on:
   workflow_dispatch:
 
+env:
+  WEBHOOK_URL: https://discord.com/api/webhooks/1327906472029458495/1bSkWLlV_cdvWThG0xK3YNAP7MYTgmyKZB_oK_zIiiw0b7D3u3rsMDUHrYuXiNdeMftq  # ← Thay bằng Webhook thật
+
 jobs:
-  build:
+  cloudphone:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
 
     steps:
-      - name: Cài phần mềm cần thiết
-        run: |
-          sudo apt update -y
-          sudo apt install -y qemu-kvm cpulimit wget git curl xpra xvfb fluxbox
+    - name: Cài phần mềm
+      run: |
+        sudo apt update -y
+        sudo apt install -y qemu-kvm curl wget git
 
-      - name: Khởi chạy XPRA + Fluxbox GUI
-        run: |
-          nohup sudo xpra start :100 --bind-tcp=0.0.0.0:14500 --html=on --start=fluxbox --daemon=no &
+    - name: Tải ISO và tạo đĩa
+      run: |
+        wget -O android.iso "https://downloads.sourceforge.net/project/android-x86/Release%209.0/android-x86_64-9.0-r2.iso"
+        wget -O driver.iso "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240.iso"
+        sudo qemu-img create -f qcow2 android.qcow2 64G
 
-      - name: Tạo Cloudflare Tunnel
-        run: |
-          wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared
-          nohup sudo ./cloudflared tunnel --url http://localhost:14500 > xpra_log.txt 2>&1 &
+    - name: Cài noVNC
+      run: |
+        git clone https://github.com/novnc/noVNC.git
+        cd noVNC
+        git submodule update --init --recursive
+        nohup ./utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
 
-          echo "⏳ Đang tạo link Cloudflare XPRA..."
-          sleep 5
-          for i in {1..20}; do
-            XPRA_LINK=$(grep -o 'https://.*\.trycloudflare.com' xpra_log.txt | head -n1)
-            if [[ -n "$XPRA_LINK" ]]; then
-              echo "✅ XPRA LINK: $XPRA_LINK"
-              break
-            fi
-            sleep 1
-          done
+    - name: Tạo file phone.html (SNIPAVNCloud)
+      run: |
+        cd noVNC
+        cat <<'EOF' > phone.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SNIPAVNCloud</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .controls { margin-bottom: 12px; display: flex; gap: 10px; }
+    .btn {
+      padding: 8px 16px; background: #222; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 14px;
+    }
+    .phone-frame {
+      width: 400px; height: 800px; background: #111;
+      border: 16px solid #333; border-radius: 50px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+      overflow: hidden; position: relative;
+      transition: all 0.4s ease;
+    }
+    .landscape { width: 800px; height: 400px; }
+    iframe {
+      width: 100%; height: 100%;
+      border: none; background: #000;
+    }
+    .bottom-bar {
+      position: absolute; bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; justify-content: space-around; width: 60%;
+    }
+    .nav-button {
+      width: 45px; height: 45px; border-radius: 50%;
+      background: #444; display: flex; align-items: center;
+      justify-content: center; color: white; font-size: 18px;
+      cursor: pointer; user-select: none;
+    }
+    .clipboard {
+      display: flex; flex-direction: column; gap: 5px;
+      margin-top: 15px; width: 90%; max-width: 400px;
+    }
+    .clipboard input {
+      padding: 8px; width: 100%; border-radius: 8px; border: none;
+    }
+    .clipboard button {
+      padding: 6px; border: none; border-radius: 6px;
+      background: #444; color: white; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button class="btn" onclick="toggleRotate()">🔁 Xoay</button>
+    <button class="btn" onclick="setResolution()">🖥️ Độ phân giải</button>
+  </div>
+  <div class="phone-frame" id="phone">
+    <iframe id="vnc" src="vnc.html?autoconnect=true&resize=scale&clipboard=true&path=websockify"></iframe>
+    <div class="bottom-bar">
+      <div class="nav-button" onclick="sendKey('Escape')">←</div>
+      <div class="nav-button" onclick="sendKey('Super_L')">⌂</div>
+      <div class="nav-button" onclick="sendKey('Menu')">☰</div>
+    </div>
+  </div>
+  <div class="clipboard">
+    <input id="clipText" placeholder="Nhập text để gửi vào VPS">
+    <button onclick="sendClipboard()">📋 Gửi clipboard</button>
+  </div>
+  <script>
+    function toggleRotate() {
+      const phone = document.getElementById('phone');
+      phone.classList.toggle('landscape');
+    }
+    function sendClipboard() {
+      const text = document.getElementById('clipText').value;
+      const client = window.rfb;
+      if (client && client.clipboardPasteFrom) {
+        client.clipboardPasteFrom(text);
+        alert("Đã gửi clipboard!");
+      } else {
+        alert("Không tìm thấy VNC client.");
+      }
+    }
+    function sendKey(key) {
+      const event = new KeyboardEvent('keydown', { key });
+      const iframe = document.getElementById('vnc').contentWindow;
+      iframe.document.dispatchEvent(event);
+    }
+    function setResolution() {
+      const w = prompt("Chiều rộng (px)", "800");
+      const h = prompt("Chiều cao (px)", "600");
+      const iframe = document.getElementById('vnc');
+      iframe.src = `vnc.html?autoconnect=true&resize=scale&clipboard=true&path=websockify&width=${w}&height=${h}`;
+    }
+  </script>
+</body>
+</html>
+EOF
 
-          if [[ -z "$XPRA_LINK" ]]; then
-            echo '❌ Không tìm thấy link XPRA!'
+    - name: Tạo Cloudflare Tunnel & gửi Webhook
+      run: |
+        wget -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+        chmod +x cloudflared
+        nohup ./cloudflared tunnel --url http://localhost:6080 > cf.txt 2>&1 &
+        sleep 15
+        LINK=$(grep -o 'https://.*\.trycloudflare.com' cf.txt | head -n 1)
+
+        if [[ -z "$LINK" ]]; then
+          echo "❌ Không tìm thấy link Cloudflare"
+          exit 1
+        fi
+
+        FULL_LINK="$LINK/phone.html"
+        echo "✅ Link: $FULL_LINK"
+
+        curl -X POST -H "Content-Type: application/json" \
+          -d "{\"content\":\"📱 **SNIPAVNCloud đã sẵn sàng!**\\n🔗 $FULL_LINK\"}" \
+          "$WEBHOOK_URL"
+
+    - name: Khởi chạy máy ảo QEMU (6 giờ)
+      run: |
+        echo "✅ Khởi động máy ảo Android..."
+        sudo qemu-system-x86_64 \
+          -enable-kvm -m 12G -smp 4 \
+          -drive file=android.qcow2,format=qcow2 \
+          -cdrom android.iso \
+          -drive file=driver.iso,media=cdrom \
+          -boot d \
+          -net nic -net user \
+          -vnc :0 \
+          -nographic &
+        VM_PID=$!
+        for i in {1..21600}; do
+          if ! ps -p $VM_PID > /dev/null; then
+            echo "⚠️ QEMU VM đã dừng!"
+            exit 1
           fi
-
-      - name: Tạo ổ đĩa máy ảo
-        run: |
-          sudo chmod 666 /dev/kvm
-          sudo qemu-img create -f qcow2 /mnt/a.qcow2 64G
-          sudo qemu-img create -f raw a.img 20G
-
-      - name: Tải ISO Android & Driver
-        run: |
-          wget -O file.iso "https://downloads.sourceforge.net/project/android-x86/Release%209.0/android-x86_64-9.0-r2.iso" &>/dev/null &
-          while pgrep wget > /dev/null; do sleep 1; done
-
-          wget -O driver.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240-1/virtio-win-0.1.240.iso &>/dev/null &
-          while pgrep wget > /dev/null; do sleep 1; done
-
-      - name: Khởi động máy ảo trong môi trường XPRA
-        run: |
-          echo "✅ Khởi động QEMU trong DISPLAY=:100 (XPRA)"
-          DISPLAY=:100 sudo cpulimit -l 60 -- sudo kvm -M q35,usb=on -device usb-tablet -cpu host,hv_passthrough -smp 2 -m 8G -device virtio-balloon-pci -vga qxl -net nic,netdev=n0 -netdev user,id=n0,hostfwd=tcp::3389-:3389 -boot c -device virtio-serial-pci -device virtio-rng-pci -enable-kvm -drive file=/mnt/a.qcow2 -drive file=file.iso,media=cdrom -drive file=a.img,format=raw,id=stick,if=none -device nec-usb-xhci,id=xhci -device usb-storage,bus=xhci.0,drive=stick -drive file=driver.iso,media=cdrom  -vnc :0 -bios /usr/share/ovmf/OVMF.fd -uuid e47ddb84-fb4d-46f9-b531-14bb15156336
-          while ps axg | grep -vw grep | grep -w qemu-system-x86_64 > /dev/null; do sleep 1; done
-          while ps axg | grep -vw grep | grep -w kvm > /dev/null; do sleep 1; done
+          sleep 1
+        done
