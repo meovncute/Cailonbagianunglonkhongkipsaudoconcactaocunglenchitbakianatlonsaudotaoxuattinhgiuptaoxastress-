@@ -32,7 +32,7 @@ jobs:
           websockify -D --web=/usr/share/novnc/ 6080 localhost:5900
       - name: Tạo file phone.html (SNIPAVNCloud)
         run: |
-          cd noVNC
+          sudo cd /usr/share/novnc/
           wget -O phone.html https://github.com/meovncute/Cailonbagianunglonkhongkipsaudoconcactaocunglenchitbakianatlonsaudotaoxuattinhgiuptaoxastress-/raw/refs/heads/main/html.txt
       - name: Tạo Cloudflare Tunnel & gửi Webhook
         run: |
