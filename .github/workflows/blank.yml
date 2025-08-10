@@ -28,7 +28,7 @@ jobs:
           
       - name: Cài noVNC
         run: |
-          apt install -y novnc python3-websockify python3-numpy
+          sudo apt install -y novnc python3-websockify python3-numpy
           websockify -D --web=/usr/share/novnc/ 6080 localhost:5900
       - name: Tạo file phone.html (SNIPAVNCloud)
         run: |
