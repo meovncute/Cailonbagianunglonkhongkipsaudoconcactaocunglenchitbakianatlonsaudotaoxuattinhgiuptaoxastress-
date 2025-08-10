@@ -31,8 +31,9 @@ jobs:
           git clone https://github.com/novnc/noVNC.git
           cd noVNC
           git submodule update --init --recursive
-          nohup ./utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
-
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+          -keyout self.pem -out self.pem -subj "/CN=localhost"
+          nohup ./utils/novnc_proxy --vnc localhost:5900 --listen 6080 --cert self.pem &
       - name: Tạo file phone.html (SNIPAVNCloud)
         run: |
           cd noVNC
