@@ -28,12 +28,8 @@ jobs:
           
       - name: Cài noVNC
         run: |
-          git clone https://github.com/novnc/noVNC.git
-          cd noVNC
-          git submodule update --init --recursive
-          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-          -keyout self.pem -out self.pem -subj "/CN=localhost"
-          nohup ./utils/novnc_proxy --vnc localhost:5900 --listen 6080 --cert self.pem &
+          apt install -y novnc python3-websockify python3-numpy
+          websockify -D --web=/usr/share/novnc/ 6080 localhost:5900
       - name: Tạo file phone.html (SNIPAVNCloud)
         run: |
           cd noVNC
